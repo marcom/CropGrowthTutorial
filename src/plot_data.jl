@@ -1,16 +1,35 @@
 ##########################
 # functions to plot data #
 ##########################
+
+# To handle multiple dispatch
+abstract type AbstractPlotOption end
+
+struct MakiePlotOption <: AbstractPlotOption end
+# this is de default option
+
+struct PlotsPlotOption <: AbstractPlotOption end
+# note that we only have Plots recipies for plot_daily_stuff_one_year and plot_correlation
+
+
 """
     plot_daily_stuff_one_year(cropfield::AquaCropField, crop_type, soil_type, cols=["CC", "Stage", "Y(fresh)", "Biomass" ], plot_label=true; kw...)
 
 plots the data in `cropfield.dayout` considering the columns `cols`
 """
+function plot_daily_stuff_one_year(plottype::T, cropfield::AquaCropField, crop_type, soil_type, cols=["CC", "Stage", "Y(fresh)", "Biomass" ], plot_label=true; kw...) where T<:AbstractPlotOption
+    plot_daily_stuff_one_year(plottype, cropfield.dayout, crop_type, soil_type, cols, plot_label; kw...)
+end
+
 function plot_daily_stuff_one_year(cropfield::AquaCropField, crop_type, soil_type, cols=["CC", "Stage", "Y(fresh)", "Biomass" ], plot_label=true; kw...)
-    plot_daily_stuff_one_year(cropfield.dayout, crop_type, soil_type, cols; kw...)
+    plot_daily_stuff_one_year(MakiePlotOption(), cropfield.dayout, crop_type, soil_type, cols, plot_label; kw...)
 end
 
 function plot_daily_stuff_one_year(cropfield::AbstractDataFrame, crop_type, soil_type, cols=["CC", "Stage", "Y(fresh)", "Biomass" ], plot_label=true; kw...)
+    plot_daily_stuff_one_year(MakiePlotOption(), cropfield, crop_type, soil_type, cols, plot_label; kw...)
+end
+
+function plot_daily_stuff_one_year(plottype::MakiePlotOption, cropfield::AbstractDataFrame, crop_type, soil_type, cols=["CC", "Stage", "Y(fresh)", "Biomass" ], plot_label=true; kw...)
     xx = findlast(x->x==4, cropfield.Stage) + 1
     d_ii = cropfield[xx, :Date]
     if haskey(kw, :end_day)
@@ -24,35 +43,35 @@ function plot_daily_stuff_one_year(cropfield::AbstractDataFrame, crop_type, soil
     x = cropfield[1:xx,"Date"]
     aux_sz = round(Int, sqrt(length(cols)))
 
-    f = Figure()
+    f = Makie.Figure()
     for (i, coli) in enumerate(cols)
         ii, jj = divrem(i-1, aux_sz)
-        ax = Axis(f[jj, ii],
+        ax = Makie.Axis(f[jj, ii],
             title = coli*" vs Date",
             xlabel = "Date",
             ylabel = coli,
         )
-        lines!(ax, x, ustrip.(cropfield[1:xx, coli]))
+        Makie.lines!(ax, x, ustrip.(cropfield[1:xx, coli]))
 
         # to plot a vertical line on special days
         if haskey(kw, :end_day)
-            vlines!(ax, kw[:end_day].value, color = :tomato, linestyle = :dash, label="harvest day")
+            Makie.vlines!(ax, kw[:end_day].value, color = :tomato, linestyle = :dash, label="harvest day")
         end
         if haskey(kw, :emergence_day) && !ismissing(kw[:emergence_day])
-            vlines!(ax, kw[:emergence_day].value, color = :green, linestyle = :dash, label="emergence day")
+            Makie.vlines!(ax, kw[:emergence_day].value, color = :green, linestyle = :dash, label="emergence day")
         end
         if haskey(kw, :beginflowering_day) && !ismissing(kw[:beginflowering_day])
-            vlines!(ax, kw[:beginflowering_day].value, color = :yellow, linestyle = :dash, label="flowering day")
+            Makie.vlines!(ax, kw[:beginflowering_day].value, color = :yellow, linestyle = :dash, label="flowering day")
         end
         if haskey(kw, :endflowering_day) && !ismissing(kw[:endflowering_day])
-            vlines!(ax, kw[:endflowering_day].value, color = :orange, linestyle = :dash, label="end flowering day")
+            Makie.vlines!(ax, kw[:endflowering_day].value, color = :orange, linestyle = :dash, label="end flowering day")
         end
 
         # to plot a horizontal line in a minimum temperature
         if (coli=="Tmin") & haskey(kw, :Tmin)
-            hlines!(ax, kw[:Tmin], color = :tomato, linestyle = :dash, label="min T flowering")
+            Makie.hlines!(ax, kw[:Tmin], color = :tomato, linestyle = :dash, label="min T flowering")
         end
-        # axislegend(position = :rb)
+        # Makie.axislegend(position = :rb)
 
         ax.xticklabelrotation = π/4
         ax.xticklabelsize = 8
@@ -61,10 +80,10 @@ function plot_daily_stuff_one_year(cropfield::AbstractDataFrame, crop_type, soil
 
     if plot_label
         # Add a general title
-        Label(f[-1, :], "Simulation results for "*crop_type, fontsize = 15, valign = :center, font = :bold)
+        Makie.Label(f[-1, :], "Simulation results for "*crop_type, fontsize = 15, valign = :center, font = :bold)
 
         # Add small text (e.g., as a footer)
-        Label(f[aux_sz, :], "Simulation starts in " * string(cropfield[1, "Date"]) * " and ends in " * string(cropfield[end, "Date"]) * " soil_type is " * soil_type
+        Makie.Label(f[aux_sz, :], "Simulation starts in " * string(cropfield[1, "Date"]) * " and ends in " * string(cropfield[end, "Date"]) * " soil_type is " * soil_type
                     , fontsize = 12, valign = :bottom)
     end
 
@@ -81,16 +100,16 @@ function plot_yearly_data(datas, cols, years_interval, crop_type, soil_type, reg
     @assert length(datas) == length(cols) "Bad number of data or cols names"
     x = years_interval
 
-    f = Figure()
-    ax = Axis(f[1,1],
+    f = Makie.Figure()
+    ax = Makie.Axis(f[1,1],
         title = crop_type*" yield over time in region "*region_name,
         xlabel = "Year",
         ylabel = "ton/ha"
     )
     for (i, coli) in enumerate(cols)
-        scatterlines!(ax, x, datas[i], label=coli)
+        Makie.scatterlines!(ax, x, datas[i], label=coli)
     end
-    f[1, 2] = Legend(f, ax, "soil_type is "*soil_type, titlefont = :regular, framevisible = false)
+    f[1, 2] = Makie.Legend(f, ax, "soil_type is "*soil_type, titlefont = :regular, framevisible = false)
 
     return f
 end
@@ -104,21 +123,21 @@ function plot_gddaily_stuff_one_year(cropfield::AquaCropField, crop_type, soil_t
     x = cumsum(cropfield.dayout.GD)
     aux_sz = round(Int, sqrt(length(cols)))
 
-    f = Figure()
+    f = Makie.Figure()
     for (i, coli) in enumerate(cols)
         ii, jj = divrem(i-1, aux_sz)
-        ax = Axis(f[ii, jj],
+        ax = Makie.Axis(f[ii, jj],
             title = coli*" vs GDDay",
             xlabel = "GDDay",
             ylabel = coli,
         )
-        lines!(ax, x, ustrip.(cropfield.dayout[!, coli]))
+        Makie.lines!(ax, x, ustrip.(cropfield.dayout[!, coli]))
     end
     # Add a general title
-    Label(f[-1, :], "Simulation results for "*crop_type, fontsize = 15, valign = :center, font = :bold)
+    Makie.Label(f[-1, :], "Simulation results for "*crop_type, fontsize = 15, valign = :center, font = :bold)
 
     # Add small text (e.g., as a footer)
-    Label(f[aux_sz, :], "Simulation starts in " * string(cropfield.dayout[1, "Date"]) * " and ends in " * string(cropfield.dayout[end, "Date"]) * " soil_type is " * soil_type
+    Makie.Label(f[aux_sz, :], "Simulation starts in " * string(cropfield.dayout[1, "Date"]) * " and ends in " * string(cropfield.dayout[end, "Date"]) * " soil_type is " * soil_type
                 , fontsize = 12, valign = :bottom)
 
     return f
@@ -130,8 +149,12 @@ end
 plots the simulated yield vs measured yield, it also finds the Pearson and Spearman correlation between them
 """
 function plot_correlation(xx, yy, crop_type, region_name, variable_name)
-    f = Figure()
-    ax = Axis(f[1,1],
+    plot_correlation(MakiePlotOption(), xx, yy, crop_type, region_name, variable_name)
+end
+
+function plot_correlation(plottype::MakiePlotOption, xx, yy, crop_type, region_name, variable_name)
+    f = Makie.Figure()
+    ax = Makie.Axis(f[1,1],
         title = crop_type*" simulated vs actual "*variable_name*" in region "*region_name,
         xlabel = "actual value",
         ylabel = "simulated value"
@@ -145,11 +168,11 @@ function plot_correlation(xx, yy, crop_type, region_name, variable_name)
     mse = msd(x, y)
     x_bar = mean(x)
     willmott = 1 - mse * length(x) / mapreduce(x->x^2, +, ( abs.(x .- x_bar) + abs.(y .- x_bar) ))
-    scatter!(ax, x, y; label="data")
+    Makie.scatter!(ax, x, y; label="data")
     sort!(x)
-    lines!(ax, x, x; color = :tomato, linestyle = :dash, label="x=y")
+    Makie.lines!(ax, x, x; color = :tomato, linestyle = :dash, label="x=y")
     ss = @sprintf "Pearson is %4.2f \nSpearman is %4.2f \n Willmott is %5.2f" per spe willmott
-    f[1, 2] = Legend(f, ax, ss, titlefont = :regular, framevisible = false)
+    f[1, 2] = Makie.Legend(f, ax, ss, titlefont = :regular, framevisible = false)
 
     return f
 end
@@ -175,43 +198,43 @@ function plot_soil_wc(cropfield::AbstractDataFrame; kw...)
 
     x = cropfield[1:xx,"Date"]
 
-    f = Figure()
-    ax = Axis(f[1, 1],
+    f = Makie.Figure()
+    ax = Makie.Axis(f[1, 1],
         title = "Soil Water Content",
         xlabel = "Date",
         ylabel = "mm"
     )
 
-    lines!(ax, x, ustrip.(cropfield[1:xx,"Wr"] - cropfield[1:xx,"Wr(SAT)"]), label="Water in root zone")
-    lines!(ax, x, ustrip.(cropfield[1:xx,"Wr(FC)"] - cropfield[1:xx,"Wr(SAT)"]), linestyle=:dash, label="Field Capacity")
-    lines!(ax, x, ustrip.(cropfield[1:xx,"Wr(PWP)"] - cropfield[1:xx,"Wr(SAT)"]), linestyle=:dash, label="Wilting Point")
-    # lines!(ax, x, ustrip.(cropfield[1:xx,"Wr(exp)"] - cropfield[1:xx,"Wr(SAT)"]), linestyle=:dash, label="exp")
-    # lines!(ax, x, ustrip.(cropfield[1:xx,"Wr(sto)"] - cropfield[1:xx,"Wr(SAT)"]), linestyle=:dash, label="sto")
-    # lines!(ax, x, ustrip.(cropfield[1:xx,"Wr(sen)"] - cropfield[1:xx,"Wr(SAT)"]), linestyle=:dash, label="sen")
+    Makie.lines!(ax, x, ustrip.(cropfield[1:xx,"Wr"] - cropfield[1:xx,"Wr(SAT)"]), label="Water in root zone")
+    Makie.lines!(ax, x, ustrip.(cropfield[1:xx,"Wr(FC)"] - cropfield[1:xx,"Wr(SAT)"]), linestyle=:dash, label="Field Capacity")
+    Makie.lines!(ax, x, ustrip.(cropfield[1:xx,"Wr(PWP)"] - cropfield[1:xx,"Wr(SAT)"]), linestyle=:dash, label="Wilting Point")
+    # Makie.lines!(ax, x, ustrip.(cropfield[1:xx,"Wr(exp)"] - cropfield[1:xx,"Wr(SAT)"]), linestyle=:dash, label="exp")
+    # Makie.lines!(ax, x, ustrip.(cropfield[1:xx,"Wr(sto)"] - cropfield[1:xx,"Wr(SAT)"]), linestyle=:dash, label="sto")
+    # Makie.lines!(ax, x, ustrip.(cropfield[1:xx,"Wr(sen)"] - cropfield[1:xx,"Wr(SAT)"]), linestyle=:dash, label="sen")
 
 
-    axislegend(position = :lt)
+    Makie.axislegend(position = :lt)
 
     ax.xticklabelrotation = π/4
     ax.xticklabelsize = 8
     ax.yticklabelsize = 8
 
-    ax2 = Axis(f[1, 1], yticklabelcolor = :tomato, yaxisposition = :right, ylabel = "mm", ylabelcolor = :tomato)
-    hidespines!(ax2)
-    hidexdecorations!(ax2)
+    ax2 = Makie.Axis(f[1, 1], yticklabelcolor = :tomato, yaxisposition = :right, ylabel = "mm", ylabelcolor = :tomato)
+    Makie.hidespines!(ax2)
+    Makie.hidexdecorations!(ax2)
 
-    barplot!(ax2, x, ustrip.(cropfield[1:xx, "Rain"]), label="Rain", gap=0, color=(:gray85, 0.5), strokecolor=:black, strokewidth=1)
+    Makie.barplot!(ax2, x, ustrip.(cropfield[1:xx, "Rain"]), label="Rain", gap=0, color=(:gray85, 0.5), strokecolor=:black, strokewidth=1)
     ax2.xticklabelrotation = π/4
     ax2.xticklabelsize = 8
     ax2.yticklabelsize = 8
-    axislegend(position = :rt)
+    Makie.axislegend(position = :rt)
 
 
-    ax3 = Axis(f[1, 1])
-    hidespines!(ax3)
-    hidexdecorations!(ax3)
-    hideydecorations!(ax3)
-    lines!(ax3, x, cropfield[1:xx, "Stage"], color=:gold, linestyle=:dash)
+    ax3 = Makie.Axis(f[1, 1])
+    Makie.hidespines!(ax3)
+    Makie.hidexdecorations!(ax3)
+    Makie.hideydecorations!(ax3)
+    Makie.lines!(ax3, x, cropfield[1:xx, "Stage"], color=:gold, linestyle=:dash)
 
     return f
 end
@@ -238,27 +261,27 @@ function plot_eto_tr(cropfield::AbstractDataFrame; kw...)
 
     x = cropfield[1:xx,"Date"]
 
-    f = Figure()
-    ax = Axis(f[1, 1],
+    f = Makie.Figure()
+    ax = Makie.Axis(f[1, 1],
         title = "Evapotranspiration",
         xlabel = "Date",
         ylabel = "mm"
     )
-    barplot!(ax, x, ustrip.(cropfield[1:xx, "ETo"]), label="ETo", gap=0, color=:gray85, strokecolor=:black, strokewidth=1)
-    barplot!(ax, x, ustrip.(cropfield[1:xx, "Trx"]), label="Potential Transpiration", gap=0, color=(:dodgerblue, 0.5), strokecolor=:black, strokewidth=1)
-    barplot!(ax, x, ustrip.(cropfield[1:xx, "Tr"]), label="Actual Transpiration", gap=0, color=(:lightsalmon, 0.3), strokecolor=:black, strokewidth=1)
+    Makie.barplot!(ax, x, ustrip.(cropfield[1:xx, "ETo"]), label="ETo", gap=0, color=:gray85, strokecolor=:black, strokewidth=1)
+    Makie.barplot!(ax, x, ustrip.(cropfield[1:xx, "Trx"]), label="Potential Transpiration", gap=0, color=(:dodgerblue, 0.5), strokecolor=:black, strokewidth=1)
+    Makie.barplot!(ax, x, ustrip.(cropfield[1:xx, "Tr"]), label="Actual Transpiration", gap=0, color=(:lightsalmon, 0.3), strokecolor=:black, strokewidth=1)
     ax.xticklabelrotation = π/4
     ax.xticklabelsize = 8
     ax.yticklabelsize = 8
-    axislegend(position = :lt)
+    Makie.axislegend(position = :lt)
 
 
-    ax2 = Axis(f[1, 1], yticklabelcolor = :tomato, yaxisposition = :right, ylabelcolor = :tomato)
-    hidespines!(ax2)
-    hidexdecorations!(ax2)
-    hideydecorations!(ax2)
-    # lines!(ax2, x, cropfield[1:xx, "Stage"], color=:gold, linestyle=:dash)
-    lines!(ax2, x, cropfield[1:xx, "CC"], color=:gold, linestyle=:dash)
+    ax2 = Makie.Axis(f[1, 1], yticklabelcolor = :tomato, yaxisposition = :right, ylabelcolor = :tomato)
+    Makie.hidespines!(ax2)
+    Makie.hidexdecorations!(ax2)
+    Makie.hideydecorations!(ax2)
+    # Makie.lines!(ax2, x, cropfield[1:xx, "Stage"], color=:gold, linestyle=:dash)
+    Makie.lines!(ax2, x, cropfield[1:xx, "CC"], color=:gold, linestyle=:dash)
 
     return f
 end
@@ -284,8 +307,8 @@ function plot_crop_stress(cropfield::AbstractDataFrame, var::Symbol=:all; kw...)
 
     x = cropfield[1:xx,"Date"]
 
-    f = Figure()
-    ax = Axis(f[1, 1],
+    f = Makie.Figure()
+    ax = Makie.Axis(f[1, 1],
         title = "Crop Stresses",
         xlabel = "Date",
         ylabel = "%"
@@ -302,28 +325,28 @@ function plot_crop_stress(cropfield::AbstractDataFrame, var::Symbol=:all; kw...)
     end
 
     if  plt_wtr
-        lines!(ax, x, cropfield[1:xx, "StExp"], label="Expansion stress")
-        lines!(ax, x, cropfield[1:xx, "StSto"], label="Stomatal stress")
-        lines!(ax, x, cropfield[1:xx, "StSen"], label="Senescence stress")
-        # lines!(ax, x, cropfield[1:xx, "StSalt"], label="Salt stress")
-        # lines!(ax, x, cropfield[1:xx, "StWeed"], label="StWeed")
+        Makie.lines!(ax, x, cropfield[1:xx, "StExp"], label="Expansion stress")
+        Makie.lines!(ax, x, cropfield[1:xx, "StSto"], label="Stomatal stress")
+        Makie.lines!(ax, x, cropfield[1:xx, "StSen"], label="Senescence stress")
+        # Makie.lines!(ax, x, cropfield[1:xx, "StSalt"], label="Salt stress")
+        # Makie.lines!(ax, x, cropfield[1:xx, "StWeed"], label="StWeed")
     end
     if plt_tem
-        lines!(ax, x, cropfield[1:xx, "StTr"], label="Temperature stress")
+        Makie.lines!(ax, x, cropfield[1:xx, "StTr"], label="Temperature stress")
     end
-    axislegend(position = :lt)
+    Makie.axislegend(position = :lt)
 
     ax.xticklabelrotation = π/4
     ax.xticklabelsize = 8
     ax.yticklabelsize = 8
-    ylims!(ax, -1, nothing)
+    Makie.ylims!(ax, -1, nothing)
 
-    ax2 = Axis(f[1, 1], yticklabelcolor = :tomato, yaxisposition = :right, ylabelcolor = :tomato)
-    hidespines!(ax2)
-    hidexdecorations!(ax2)
-    hideydecorations!(ax2)
-    lines!(ax2, x, cropfield[1:xx, "Stage"], color=:gold, linestyle=:dash)
-    ylims!(ax2, 0, nothing)
+    ax2 = Makie.Axis(f[1, 1], yticklabelcolor = :tomato, yaxisposition = :right, ylabelcolor = :tomato)
+    Makie.hidespines!(ax2)
+    Makie.hidexdecorations!(ax2)
+    Makie.hideydecorations!(ax2)
+    Makie.lines!(ax2, x, cropfield[1:xx, "Stage"], color=:gold, linestyle=:dash)
+    Makie.ylims!(ax2, 0, nothing)
 
     return f
 end
@@ -349,26 +372,26 @@ function plot_wpi(cropfield::AbstractDataFrame, wp=100, wpy=100; kw...)
 
     x = cropfield[1:xx,"Date"]
 
-    f = Figure()
-    ax = Axis(f[1, 1],
+    f = Makie.Figure()
+    ax = Makie.Axis(f[1, 1],
         title = "Water productivity",
         xlabel = "Date",
         ylabel = "%"
     )
-    lines!(ax, x, ustrip.(cropfield[1:xx, "WP"]), label="Water Productivity")
-    hlines!(ax, wp, color = :tomato, linestyle = :dash, label="target WP")
-    axislegend(position = :rb)
+    Makie.lines!(ax, x, ustrip.(cropfield[1:xx, "WP"]), label="Water Productivity")
+    Makie.hlines!(ax, wp, color = :tomato, linestyle = :dash, label="target WP")
+    Makie.axislegend(position = :rb)
 
     ax.xticklabelrotation = π/4
     ax.xticklabelsize = 8
     ax.yticklabelsize = 8
-    ylims!(ax, -1, nothing)
+    Makie.ylims!(ax, -1, nothing)
 
-    ax2 = Axis(f[1, 1], yticklabelcolor = :tomato, yaxisposition = :right, ylabelcolor = :tomato)
-    hidespines!(ax2)
-    hidexdecorations!(ax2)
-    hideydecorations!(ax2)
-    lines!(ax2, x, cropfield[1:xx, "Stage"], color=:gold, linestyle=:dash)
+    ax2 = Makie.Axis(f[1, 1], yticklabelcolor = :tomato, yaxisposition = :right, ylabelcolor = :tomato)
+    Makie.hidespines!(ax2)
+    Makie.hidexdecorations!(ax2)
+    Makie.hideydecorations!(ax2)
+    Makie.lines!(ax2, x, cropfield[1:xx, "Stage"], color=:gold, linestyle=:dash)
 
     return f
 end
@@ -397,45 +420,45 @@ function plot_temp(cropfield::AbstractDataFrame, tcold=10, theat=40, gd=12; kw..
 
     x = cropfield[1:xx,"Date"]
 
-    f = Figure()
-    ax = Axis(f[1, 1],
+    f = Makie.Figure()
+    ax = Makie.Axis(f[1, 1],
         title = "Temperature",
         xlabel = "Date",
         ylabel = "°C"
     )
 
-    lines!(ax, x, ustrip.(uconvert.( u"°C", cropfield[1:xx, "Tavg"])), label="Tavg", color=:chartreuse3)
-    lines!(ax, x, ustrip.(uconvert.( u"°C", cropfield[1:xx, "Tmin"])), color=:turquoise, linestyle=:dash)
-    lines!(ax, x, ustrip.(uconvert.( u"°C", cropfield[1:xx, "Tmax"])), color=:tomato, linestyle=:dash)
-    hlines!(ax, tcold, color = :turquoise2, linestyle = :dashdotdot, label="tcold flowering")
-    hlines!(ax, theat, color = :tomato2, linestyle = :dashdotdot, label="theat flowering")
+    Makie.lines!(ax, x, ustrip.(uconvert.( u"°C", cropfield[1:xx, "Tavg"])), label="Tavg", color=:chartreuse3)
+    Makie.lines!(ax, x, ustrip.(uconvert.( u"°C", cropfield[1:xx, "Tmin"])), color=:turquoise, linestyle=:dash)
+    Makie.lines!(ax, x, ustrip.(uconvert.( u"°C", cropfield[1:xx, "Tmax"])), color=:tomato, linestyle=:dash)
+    Makie.hlines!(ax, tcold, color = :turquoise2, linestyle = :dashdotdot, label="tcold flowering")
+    Makie.hlines!(ax, theat, color = :tomato2, linestyle = :dashdotdot, label="theat flowering")
 
-    axislegend(position = :lt)
+    Makie.axislegend(position = :lt)
 
     ax.xticklabelrotation = π/4
     ax.xticklabelsize = 8
     ax.yticklabelsize = 8
 
-    ax2 = Axis(f[1, 1], yticklabelcolor = :tomato, yaxisposition = :right, ylabelcolor = :tomato)
-    hidespines!(ax2)
-    hidexdecorations!(ax2)
-    hideydecorations!(ax2)
-    lines!(ax2, x, cropfield[1:xx, "Stage"], color=:gold, linestyle=:dash)
+    ax2 = Makie.Axis(f[1, 1], yticklabelcolor = :tomato, yaxisposition = :right, ylabelcolor = :tomato)
+    Makie.hidespines!(ax2)
+    Makie.hidexdecorations!(ax2)
+    Makie.hideydecorations!(ax2)
+    Makie.lines!(ax2, x, cropfield[1:xx, "Stage"], color=:gold, linestyle=:dash)
 
 
-    ax = Axis(f[2, 1],
+    ax = Makie.Axis(f[2, 1],
         title = "GD",
         xlabel = "Date",
         ylabel = "°C"
     )
-    lines!(ax, x, cropfield[1:xx, "GD"], label="GD", color=:chartreuse3)
-    hlines!(ax, gd, color = :turquoise, linestyle = :dashdotdot, label="canopy growht limit")
+    Makie.lines!(ax, x, cropfield[1:xx, "GD"], label="GD", color=:chartreuse3)
+    Makie.hlines!(ax, gd, color = :turquoise, linestyle = :dashdotdot, label="canopy growht limit")
 
-    ax2 = Axis(f[2, 1], yticklabelcolor = :tomato, yaxisposition = :right, ylabelcolor = :tomato)
-    hidespines!(ax2)
-    hidexdecorations!(ax2)
-    hideydecorations!(ax2)
-    lines!(ax2, x, cropfield[1:xx, "Stage"], color=:gold, linestyle=:dash)
+    ax2 = Makie.Axis(f[2, 1], yticklabelcolor = :tomato, yaxisposition = :right, ylabelcolor = :tomato)
+    Makie.hidespines!(ax2)
+    Makie.hidexdecorations!(ax2)
+    Makie.hideydecorations!(ax2)
+    Makie.lines!(ax2, x, cropfield[1:xx, "Stage"], color=:gold, linestyle=:dash)
     return f
 end
 
@@ -453,14 +476,14 @@ function plot_GDD_stats_violin(df::AbstractDataFrame, station_name)
             x_1 = fill(1, length(v_1))
             
             # Plot violins
-            violin!(ax, x_1, v_1; show_median=true, datalimits=extrema)
+            Makie.violin!(ax, x_1, v_1; show_median=true, datalimits=extrema)
         end
     end
 
 
-    f = Figure()
+    f = Makie.Figure()
 
-    ax1 = Axis(f[1, 1],
+    ax1 = Makie.Axis(f[1, 1],
         title = "Harvest GDD",
         ylabel = "GDD",
         yticklabelsize = 8,
@@ -469,7 +492,7 @@ function plot_GDD_stats_violin(df::AbstractDataFrame, station_name)
     plot_violin_col!(ax1, df.harvest_actualgdd)
     ax1.xticklabelrotation = π/4
 
-    ax2 = Axis(f[2, 1],
+    ax2 = Makie.Axis(f[2, 1],
         title = "Begin Flowering GDD",
         ylabel = "GDD",
         xticks = ([1], [station_name])
@@ -477,7 +500,7 @@ function plot_GDD_stats_violin(df::AbstractDataFrame, station_name)
     plot_violin_col!(ax2, df.beginflowering_actualgdd)
     ax2.xticklabelrotation = π/4
 
-    ax3 = Axis(f[1, 2],
+    ax3 = Makie.Axis(f[1, 2],
         title = "End Flowering GDD",
         ylabel = "GDD",
         xticks = ([1], [station_name])
@@ -485,7 +508,7 @@ function plot_GDD_stats_violin(df::AbstractDataFrame, station_name)
     plot_violin_col!(ax3, df.endflowering_actualgdd)
     ax3.xticklabelrotation = π/4
 
-    ax4 = Axis(f[2, 2],
+    ax4 = Makie.Axis(f[2, 2],
         title = "Emergence GDD",
         ylabel = "GDD",
         xticks = ([1], [station_name])
@@ -501,35 +524,35 @@ end
 plots the GDD and CD for different crop phenology phases and stations
 """
 function plot_GDD_stats_years(df::AbstractDataFrame, station_name)
-    f = Figure()
+    f = Makie.Figure()
 
-    ax1 = Axis(f[1,1],
+    ax1 = Makie.Axis(f[1,1],
         title = "Harvest Day difference",
         ylabel = "Days",
         xlabel = "Year"
     )
-    scatter!(ax1, year.(df.sowingdate), (df.harvest_actualdays - df.harvest_simulateddays), label=station_name, color=1, alpha=0.8, colormap=:tab10, colorrange=(1,10))
+    Makie.scatter!(ax1, year.(df.sowingdate), (df.harvest_actualdays - df.harvest_simulateddays), label=station_name, color=1, alpha=0.8, colormap=:tab10, colorrange=(1,10))
 
-    ax1_1 = Axis(f[1,1],
+    ax1_1 = Makie.Axis(f[1,1],
         ylabel = "GDDays",
         yticklabelcolor = :tomato,
         yaxisposition = :right,
         ylabelcolor = :tomato,
     )
-    scatter!(ax1_1, year.(df.sowingdate), (df.harvest_actualgdd - df.harvest_simulatedgdd), label=station_name, color=2, alpha=0.8, colormap=:tab10, colorrange=(1,10), marker=:rtriangle)
-    hidespines!(ax1_1)
-    hidexdecorations!(ax1_1)
+    Makie.scatter!(ax1_1, year.(df.sowingdate), (df.harvest_actualgdd - df.harvest_simulatedgdd), label=station_name, color=2, alpha=0.8, colormap=:tab10, colorrange=(1,10), marker=:rtriangle)
+    Makie.hidespines!(ax1_1)
+    Makie.hidexdecorations!(ax1_1)
 
-    ax2 = Axis(f[2,1],
+    ax2 = Makie.Axis(f[2,1],
         title = "Begin Flowering Day difference",
         ylabel = "Days",
         xlabel = "Year"
     )
     x, y = keep_only_notmissing(year.(df.sowingdate), (df.beginflowering_actualdays - df.beginflowering_simulateddays))
     if length(x)>1
-        scatter!(ax2, x, y, label=station_name, color=1, alpha=0.8, colormap=:tab10, colorrange=(1,10))
+        Makie.scatter!(ax2, x, y, label=station_name, color=1, alpha=0.8, colormap=:tab10, colorrange=(1,10))
     end
-    ax2_1 = Axis(f[2,1],
+    ax2_1 = Makie.Axis(f[2,1],
         ylabel = "GDDays",
         yticklabelcolor = :tomato,
         yaxisposition = :right,
@@ -537,21 +560,21 @@ function plot_GDD_stats_years(df::AbstractDataFrame, station_name)
     )
     x, y = keep_only_notmissing(year.(df.sowingdate), (df.beginflowering_actualgdd - df.beginflowering_simulatedgdd))
     if length(x)>1
-        scatter!(ax2_1, x, y, label="uhk", color=2, alpha=0.8, colormap=:tab10, colorrange=(1,10), marker=:rtriangle)
+        Makie.scatter!(ax2_1, x, y, label="uhk", color=2, alpha=0.8, colormap=:tab10, colorrange=(1,10), marker=:rtriangle)
     end
-    hidespines!(ax2_1)
-    hidexdecorations!(ax2_1)
+    Makie.hidespines!(ax2_1)
+    Makie.hidexdecorations!(ax2_1)
 
-    ax3 = Axis(f[3,1],
+    ax3 = Makie.Axis(f[3,1],
         title = "Emergence Day difference",
         ylabel = "Days",
         xlabel = "Year"
     )
     x, y = keep_only_notmissing(year.(df.sowingdate), (df.emergence_actualdays - df.emergence_simulateddays))
     if length(x)>1
-        scatter!(ax3, x, y, label="uhk", color=1, alpha=0.8, colormap=:tab10, colorrange=(1,10))
+        Makie.scatter!(ax3, x, y, label="uhk", color=1, alpha=0.8, colormap=:tab10, colorrange=(1,10))
     end
-    ax3_1 = Axis(f[3,1],
+    ax3_1 = Makie.Axis(f[3,1],
         ylabel = "GDDays",
         yticklabelcolor = :tomato,
         yaxisposition = :right,
@@ -559,14 +582,14 @@ function plot_GDD_stats_years(df::AbstractDataFrame, station_name)
     )
     x, y = keep_only_notmissing(year.(df.sowingdate), (df.emergence_actualgdd - df.emergence_simulatedgdd))
     if length(x)>1
-        scatter!(ax3_1, x, y, label="uhk", color=2, alpha=0.8, colormap=:tab10, colorrange=(1,10), marker=:rtriangle)
+        Makie.scatter!(ax3_1, x, y, label="uhk", color=2, alpha=0.8, colormap=:tab10, colorrange=(1,10), marker=:rtriangle)
     end
-    hidespines!(ax3_1)
-    hidexdecorations!(ax3_1)
+    Makie.hidespines!(ax3_1)
+    Makie.hidexdecorations!(ax3_1)
 
 
-    Legend(f[1,2], ax1, "Days", titlefont = :regular, framevisible = false)
-    Legend(f[2,2], ax1_1,"GDDays",  titlefont = :regular, framevisible = false, titlecolor =:tomato)
+    Makie.Legend(f[1,2], ax1, "Days", titlefont = :regular, framevisible = false)
+    Makie.Legend(f[2,2], ax1_1,"GDDays",  titlefont = :regular, framevisible = false, titlecolor =:tomato)
 
     return f
 end

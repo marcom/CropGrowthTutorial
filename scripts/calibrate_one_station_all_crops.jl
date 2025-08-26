@@ -27,7 +27,26 @@ using Dates
 using DataFrames
 using Unitful
 using CairoMakie
+using Plots
 # using Infiltrator
+
+Plots.gr()
+Plots.default(
+         fontfamily = "helvetica",
+         guidefont  = font(12),   # axes titles
+         tickfont   = font(10),   # tick labels
+         legendfont = font(10),    # legend text
+         guidefontfamily = "helvetica",
+         fontfamily_subplot = "helvetica",
+         legend_font_family = "helvetica",
+         legend_title_font_family = "helvetica",
+         plot_titlefontfamily = "helvetica",
+         titlefontfamily = "helvetica",
+         xguidefontfamily = "helvetica",
+         yguidefontfamily = "helvetica",
+         xtickfontfamilya = "helvetica",
+         ytickfontfamilya = "helvetica",
+         )
 
 
 ########
@@ -36,6 +55,7 @@ using CairoMakie
 function main(station_=nothing)
     # DFAULT STATION #
     default_station = "Jena"
+    plottype = CropGrowthTutorial.PlotsPlotOption()
 
     ## READ DATA ##
 
@@ -170,10 +190,27 @@ function main(station_=nothing)
 
             ## PLOT RESULTS ##
             # plot of days to harvest actual and simulated
-            # f = CropGrowthTutorial.plot_correlation(phenology_df.harvest_actualdays, phenology_df.harvest_simulateddays, crop_type, station_name, "days to harvest")
-            # save(plotsdir(crop_type*"_"*station_name*"_correlation.png"), f)
-            f = CropGrowthTutorial.plot_GDD_stats_years(phenology_df, station_name)
-            save(plotsdir(crop_type*"_"*station_name*"_phenology.png"), f)
+            f = CropGrowthTutorial.plot_correlation(plottype, phenology_df.harvest_actualdays, phenology_df.harvest_simulateddays, crop_type, station_name, "days to harvest")
+            if typeof(plottype) == CropGrowthTutorial.PlotsPlotOption
+                Plots.savefig(f, plotsdir("svgimages",crop_type*"_"*station_name*"harvest_correlation.svg"))
+            else
+                Makie.save(plotsdir(crop_type*"_"*station_name*"_correlation.png"), f)
+            end
+            f = CropGrowthTutorial.plot_correlation(plottype, phenology_df.emergence_actualdays, phenology_df.emergence_simulateddays, crop_type, station_name, "days to emergence")
+            if typeof(plottype) == CropGrowthTutorial.PlotsPlotOption
+                Plots.savefig(f, plotsdir("svgimages",crop_type*"_"*station_name*"emergence_correlation.svg"))
+            else
+                Makie.save(plotsdir(crop_type*"_"*station_name*"_correlation.png"), f)
+            end
+            f = CropGrowthTutorial.plot_correlation(plottype, phenology_df.beginflowering_actualdays, phenology_df.beginflowering_simulateddays, crop_type, station_name, "days to begin flowering")
+            if typeof(plottype) == CropGrowthTutorial.PlotsPlotOption
+                Plots.savefig(f, plotsdir("svgimages",crop_type*"_"*station_name*"beginflowering_correlation.svg"))
+            else
+                Makie.save(plotsdir(crop_type*"_"*station_name*"_correlation.png"), f)
+            end
+            
+            # f = CropGrowthTutorial.plot_GDD_stats_years(phenology_df, station_name)
+            # Makie.save(plotsdir(crop_type*"_"*station_name*"_phenology.png"), f)
 
             # plot of crop growth simulation 
             i = CropGrowthTutorial.find_closest_to_median(target_output)
@@ -187,8 +224,12 @@ function main(station_=nothing)
                 println("  ",all_ok.msg)
                 continue
             end
-            f = CropGrowthTutorial.plot_daily_stuff_one_year(cropfield, crop_type, soil_type; kw...)
-            save(plotsdir(crop_type*"_"*station_name*"_cropevolution.png"), f)
+            f = CropGrowthTutorial.plot_daily_stuff_one_year(plottype, cropfield, crop_type, soil_type; kw...)
+            if typeof(plottype) == CropGrowthTutorial.PlotsPlotOption
+                Plots.savefig(f, plotsdir("svgimages", crop_type*"_"*station_name*"_cropevolution.svg"))
+            else
+                Makie.save(plotsdir(crop_type*"_"*station_name*"_cropevolution.png"), f)
+            end
 
             # plot yield results
             if fit_type in [:Biomass, :Yield]
@@ -228,8 +269,15 @@ function main(station_=nothing)
                 dats = [ target_output, simulated_yield, simulated_yield_baseline ]
                 cols = [ "actual yield", "fitted yield", "baseline yield" ]
 
+                f = CropGrowthTutorial.plot_correlation(plottype, target_output, simulated_yield, crop_type, station_name, "yield data")
+                if typeof(plottype) == CropGrowthTutorial.PlotsPlotOption
+                    Plots.savefig(f, plotsdir("svgimages",crop_type*"_"*station_name*"yield_correlation.svg"))
+                else
+                    Makie.save(plotsdir(crop_type*"_"*station_name*"_correlation.png"), f)
+                end
+
                 f = CropGrowthTutorial.plot_yearly_data(dats, cols, years, crop_type, soil_type, station_name)
-                save(plotsdir(crop_type*"_"*station_name*"_yearlydata.png"), f)
+                Makie.save(plotsdir(crop_type*"_"*station_name*"_yearlydata.png"), f)
             end
             println("INFO: saved plots of crop_type "*crop_type*" from station_name "*station_name)
         end

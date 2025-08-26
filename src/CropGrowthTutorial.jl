@@ -8,6 +8,7 @@ using Dates
 using CSV
 using AquaCrop
 using CairoMakie
+using Plots
 using Unitful
 using Optimization
 using OptimizationBBO
@@ -17,6 +18,7 @@ using OptimizationBBO
 include("global_data.jl")
 include("read_data.jl")
 include("plot_data.jl")
+include("plot_data_plots.jl")
 include("simulation.jl")
 include("phenology_process.jl")
 include("canopy_root_process.jl")
