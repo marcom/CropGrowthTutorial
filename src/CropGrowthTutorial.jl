@@ -12,7 +12,7 @@ using Plots
 using Unitful
 using Optimization
 using OptimizationBBO
-
+using Infiltrator
 
 # ---- includes ----
 include("global_data.jl")

@@ -2,7 +2,7 @@
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "8c545943746ff3f4a91d1aaabdea09578aeb466e"
+project_hash = "ceba23c13d207167f77765b4fccf6c4d23818543"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "60665b326b75db6517939d0e1875850bc4a54368"
@@ -819,6 +819,12 @@ version = "3.1.11+0"
 git-tree-sha1 = "012e604e1c7458645cb8b436f8fba789a51b257f"
 uuid = "9b13fd28-a010-5f03-acff-a1bbcff69959"
 version = "1.0.0"
+
+[[deps.Infiltrator]]
+deps = ["InteractiveUtils", "Markdown", "REPL", "UUIDs"]
+git-tree-sha1 = "5c248f54dd39381e320f63363e1fbd12f8a5a822"
+uuid = "5903a43b-9cc3-4c30-8d17-598619ec4e9b"
+version = "1.9.3"
 
 [[deps.Inflate]]
 git-tree-sha1 = "d1b1b796e47d94588b3757fe84fbf65a5ec4a80d"

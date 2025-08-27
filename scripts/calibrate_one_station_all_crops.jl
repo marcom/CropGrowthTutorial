@@ -28,7 +28,7 @@ using DataFrames
 using Unitful
 using CairoMakie
 using Plots
-# using Infiltrator
+using Infiltrator
 
 Plots.gr()
 Plots.default(
@@ -198,6 +198,7 @@ function main(station_=nothing)
                 Plots.savefig(f, plotsdir("svgimages",crop_type*"_"*station_name*"harvest_correlation.svg"))
             else
                 Makie.save(plotsdir("svgimages", crop_type*"_"*station_name*"harvest_correlation.svg"), f)
+                Makie.save(plotsdir(crop_type*"_"*station_name*"harvest_correlation.png"), f)
             end
             ddd[crop_type]["harvest_actual"] = phenology_df.harvest_actualdays
             ddd[crop_type]["harvest_simulated"] = phenology_df.harvest_simulateddays
@@ -207,6 +208,7 @@ function main(station_=nothing)
                 Plots.savefig(f, plotsdir("svgimages",crop_type*"_"*station_name*"emergence_correlation.svg"))
             else
                 Makie.save(plotsdir("svgimages", crop_type*"_"*station_name*"emergence_correlation.svg"), f)
+                Makie.save(plotsdir(crop_type*"_"*station_name*"emergence_correlation.png"), f)
             end
             ddd[crop_type]["emergence_actual"] = phenology_df.emergence_actualdays
             ddd[crop_type]["emergence_simulated"] = phenology_df.emergence_simulateddays
@@ -216,6 +218,7 @@ function main(station_=nothing)
                 Plots.savefig(f, plotsdir("svgimages",crop_type*"_"*station_name*"beginflowering_correlation.svg"))
             else
                 Makie.save(plotsdir("svgimages", crop_type*"_"*station_name*"beginflowering_correlation.svg"), f)
+                Makie.save(plotsdir(crop_type*"_"*station_name*"beginflowering_correlation.png"), f)
             end
             ddd[crop_type]["beginflowering_actual"] = phenology_df.beginflowering_actualdays
             ddd[crop_type]["beginflowering_simulated"] = phenology_df.beginflowering_simulateddays
@@ -226,9 +229,25 @@ function main(station_=nothing)
             # plot of crop growth simulation 
             i = CropGrowthTutorial.find_closest_to_median(target_output)
             sowingdate = phenology_df[i,"sowingdate"]
+            endday = phenology_df[i,"harvestdate"] - Date("0001-01-01")
             kw = (
                 crop_dict = crop_dict,
+                end_day = endday 
             )
+            if !ismissing(phenology_df[i,"emergence_actualdays"])
+                emergence_day = sowingdate + Day(phenology_df[i,"emergence_actualdays"]) - Date("0001-01-01")
+                kw = merge(kw, (emergence_day = emergence_day,))
+            end
+            if !ismissing(phenology_df[i,"beginflowering_actualdays"])
+                beginflowering_day = sowingdate + Day(phenology_df[i,"beginflowering_actualdays"]) - Date("0001-01-01")
+                kw = merge(kw, (beginflowering_day = beginflowering_day,))
+            end
+            if !ismissing(phenology_df[i,"endflowering_actualdays"])
+                endflowering_day = sowingdate + Day(phenology_df[i,"endflowering_actualdays"]) - Date("0001-01-01")
+                kw = merge(kw, (endflowering_day = endflowering_day,))
+            end
+
+
             cropfield, all_ok = CropGrowthTutorial.run_simulation(soil_type, crop_name, sowingdate, hk_clim_df; kw...)
             if all_ok.logi == false
                 println("\nWARNING: bad simulation result on ", sowingdate)
@@ -240,6 +259,7 @@ function main(station_=nothing)
                 Plots.savefig(f, plotsdir("svgimages", crop_type*"_"*station_name*"_cropevolution.svg"))
             else
                 Makie.save(plotsdir("svgimages", crop_type*"_"*station_name*"_cropevolution.svg"), f)
+                Makie.save(plotsdir(crop_type*"_"*station_name*"_cropevolution.png"), f)
             end
 
             # plot yield results
@@ -285,6 +305,7 @@ function main(station_=nothing)
                     Plots.savefig(f, plotsdir("svgimages",crop_type*"_"*station_name*"yield_correlation.svg"))
                 else
                     Makie.save(plotsdir("svgimages", crop_type*"_"*station_name*"yield_correlation.svg"), f)
+                    Makie.save(plotsdir(crop_type*"_"*station_name*"yield_correlation.png"), f)
                 end
                 ddd[crop_type]["yield_actual"] = target_output 
                 ddd[crop_type]["yield_simulated"] = simulated_yield 
@@ -317,52 +338,86 @@ function write_fited_crop(crop_type, soil_type, crop_name, crop_dict, station_na
 end
 
 
-function plotting(ddd, stations, crop_type, stuff)
-    if stuff == "yield"
-        x_s = "yield_actual"
-        y_s = "yield_simulated"
-    elseif stuff == "flowering"
-        x_s = "beginflowering_actual"
-        y_s = "beginflowering_simulated"
-    elseif stuff == "harvest"
-        x_s = "harvest_actual"
-        y_s = "harvest_simulated"
-    elseif stuff == "emergence"
-        x_s = "emergence_actual"
-        y_s = "emergence_simulated"
-    else 
-        @error "not good stuff"
+function plotting(ddd, stations, crop_type)
+    # 4 panels in a 2×2
+    stuffs = ["emergence", "beginflowering", "harvest", "yield"]
+
+    # Map each stuff → (actual, simulated) keys
+    select_stuff(stuff) = begin
+        if stuff == "yield"
+            "yield_actual", "yield_simulated"
+        elseif stuff == "beginflowering"
+            "beginflowering_actual", "beginflowering_simulated"
+        elseif stuff == "harvest"
+            "harvest_actual", "harvest_simulated"
+        elseif stuff == "emergence"
+            "emergence_actual", "emergence_simulated"
+        else
+            error("unknown stuff: $stuff")
+        end
     end
 
-    f = Makie.Figure()
+    # Stable styles per station (3 known; cycles if more)
+    uniq_stations = collect(stations)
+    colors  = [:steelblue, :orange, :forestgreen]
+    markers = [:circle, :diamond, :utriangle]
+    style = Dict(s => (colors[mod1(i, length(colors))], markers[mod1(i, length(markers))])
+                 for (i, s) in enumerate(uniq_stations))
 
-    ax = Makie.Axis(f[1,1],
-        title = crop_type*" simulated vs actual "*stuff,
-        xlabel = "actual value",
-        ylabel = "simulated value"
-    )
+    f = Makie.Figure(size=(1200,800))
+    axes = Axis[]   # keep to build one pooled legend later
+    ncols = 2
 
-    xmin = 1e10
-    xmax = -1e10
+    for (i, stuff) in enumerate(stuffs)
+        row = (i - 1) ÷ ncols + 1
+        col = (i - 1) % ncols + 1
 
-    for station in stations
-        if !haskey(ddd[station], crop_type)
-            continue
-        elseif !((haskey(ddd[station][crop_type], x_s)) || (haskey(ddd[station][crop_type], y_s)))
-            continue
+        ax = Makie.Axis(f[row, col];
+            title  = "$(crop_type) simulated vs actual $stuff",
+            xlabel = "actual value",
+            ylabel = "simulated value"
+        )
+        push!(axes, ax)
+
+        xmin =  Inf
+        xmax = -Inf
+
+        x_s, y_s = select_stuff(stuff)
+
+        for s in uniq_stations
+            # skip if keys not present
+            if !haskey(ddd[s], crop_type); continue; end
+            d = ddd[s][crop_type]
+            if !(haskey(d, x_s) && haskey(d, y_s)); continue; end
+
+            xx = d[x_s]; yy = d[y_s]
+            x, y = CropGrowthTutorial.keep_only_notmissing(xx, yy)
+            isempty(x) && continue
+
+            xmin = min(xmin, minimum(x))
+            xmax = max(xmax, maximum(x))
+
+            c, m = style[s]
+            Makie.scatter!(ax, x, y; color=c, marker=m, markersize=7, label=string(s))
         end
 
-        xx = ddd[station][crop_type][x_s]
-        yy = ddd[station][crop_type][y_s]
-
-        x, y = CropGrowthTutorial.keep_only_notmissing(xx,yy)
-        xmin = min(xmin, minimum(x))
-        xmax = max(xmax, maximum(x))
-        Makie.scatter!(ax, x, y; label=station)
+        # x = y reference line (no label → won’t show in pooled legend)
+        if isfinite(xmin) && isfinite(xmax)
+            Makie.lines!(ax, [xmin, xmax], [xmin, xmax]; color=:tomato, linestyle=:dash, label=nothing)
+            Makie.xlims!(ax, xmin, xmax)
+            Makie.ylims!(ax, xmin, xmax)
+        end
     end
-    Makie.lines!(ax, [xmin, xmax], [xmin, xmax]; color = :tomato, linestyle = :dash, label="x=y")
-    f[1,2] = Makie.Legend(f, ax, titlefont=:regular, framvisible=false)
 
+    # Single legend at the bottom spanning both columns, with one entry per station
+    legend_elems = [MarkerElement(color=style[s][1], marker=style[s][2], markersize=10) for s in uniq_stations]
+    legend_labels = string.(uniq_stations)
+    f[3, 1:2] = Makie.Legend(
+    f, legend_elems, legend_labels;
+    orientation = :horizontal,   # → one row
+    framevisible = false,
+    halign = :center
+)
 
     return f
 end
