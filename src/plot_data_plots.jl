@@ -127,9 +127,9 @@ function plot_correlation(plottype::PlotsPlotOption, xx, yy, crop_type, region_n
     Plots.ylims!(p, minxy, maxxy; subplot=1)
 
     # Right panel: multiline stats text (kept as <text> in SVG)
-    stats = @sprintf("Pearson:  %4.2f\nSpearman: %4.2f\nWillmott: %5.2f", per, spe, willmott)
-    Plots.plot!(p; subplot=2, framestyle=:none, xticks=false, yticks=false, xlim=(0,1), ylim=(0,1))
-    Plots.annotate!(p, [(0.02, 0.95, Plots.text(stats, 10, :left))]; subplot=2)
+    # stats = @sprintf("Pearson:  %4.2f\nSpearman: %4.2f\nWillmott: %5.2f", per, spe, willmott)
+    # Plots.plot!(p; subplot=2, framestyle=:none, xticks=false, yticks=false, xlim=(0,1), ylim=(0,1))
+    # Plots.annotate!(p, [(0.02, 0.95, Plots.text(stats, 10, :left))]; subplot=2)
 
     return p
 end

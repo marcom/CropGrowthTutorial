@@ -171,8 +171,8 @@ function plot_correlation(plottype::MakiePlotOption, xx, yy, crop_type, region_n
     Makie.scatter!(ax, x, y; label="data")
     sort!(x)
     Makie.lines!(ax, x, x; color = :tomato, linestyle = :dash, label="x=y")
-    ss = @sprintf "Pearson is %4.2f \nSpearman is %4.2f \n Willmott is %5.2f" per spe willmott
-    f[1, 2] = Makie.Legend(f, ax, ss, titlefont = :regular, framevisible = false)
+    # ss = @sprintf "Pearson is %4.2f \nSpearman is %4.2f \n Willmott is %5.2f" per spe willmott
+    # f[1, 2] = Makie.Legend(f, ax, ss, titlefont = :regular, framevisible = false)
 
     return f
 end

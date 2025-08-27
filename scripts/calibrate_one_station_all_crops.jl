@@ -55,7 +55,7 @@ Plots.default(
 function main(station_=nothing)
     # DFAULT STATION #
     default_station = "Jena"
-    plottype = CropGrowthTutorial.PlotsPlotOption()
+    plottype = CropGrowthTutorial.MakiePlotOption()
 
     ## READ DATA ##
 
@@ -63,6 +63,8 @@ function main(station_=nothing)
     stations_df = CropGrowthTutorial.get_phenology_stations()
     # Crop type general information
     general_crop_data_df = CropGrowthTutorial.get_crop_parameters()
+
+    ddd = Dict()
 
 
     if isnothing(station_)
@@ -156,6 +158,7 @@ function main(station_=nothing)
                 continue
             end
             
+            ddd[crop_type] = Dict()
 
             # 2. Calibrate the canopy growth parameters
             CropGrowthTutorial.calibrate_canopy_root_parameters!(crop_dict, crop_name);
@@ -194,20 +197,28 @@ function main(station_=nothing)
             if typeof(plottype) == CropGrowthTutorial.PlotsPlotOption
                 Plots.savefig(f, plotsdir("svgimages",crop_type*"_"*station_name*"harvest_correlation.svg"))
             else
-                Makie.save(plotsdir(crop_type*"_"*station_name*"_correlation.png"), f)
+                Makie.save(plotsdir("svgimages", crop_type*"_"*station_name*"harvest_correlation.svg"), f)
             end
+            ddd[crop_type]["harvest_actual"] = phenology_df.harvest_actualdays
+            ddd[crop_type]["harvest_simulated"] = phenology_df.harvest_simulateddays
+
             f = CropGrowthTutorial.plot_correlation(plottype, phenology_df.emergence_actualdays, phenology_df.emergence_simulateddays, crop_type, station_name, "days to emergence")
             if typeof(plottype) == CropGrowthTutorial.PlotsPlotOption
                 Plots.savefig(f, plotsdir("svgimages",crop_type*"_"*station_name*"emergence_correlation.svg"))
             else
-                Makie.save(plotsdir(crop_type*"_"*station_name*"_correlation.png"), f)
+                Makie.save(plotsdir("svgimages", crop_type*"_"*station_name*"emergence_correlation.svg"), f)
             end
+            ddd[crop_type]["emergence_actual"] = phenology_df.emergence_actualdays
+            ddd[crop_type]["emergence_simulated"] = phenology_df.emergence_simulateddays
+
             f = CropGrowthTutorial.plot_correlation(plottype, phenology_df.beginflowering_actualdays, phenology_df.beginflowering_simulateddays, crop_type, station_name, "days to begin flowering")
             if typeof(plottype) == CropGrowthTutorial.PlotsPlotOption
                 Plots.savefig(f, plotsdir("svgimages",crop_type*"_"*station_name*"beginflowering_correlation.svg"))
             else
-                Makie.save(plotsdir(crop_type*"_"*station_name*"_correlation.png"), f)
+                Makie.save(plotsdir("svgimages", crop_type*"_"*station_name*"beginflowering_correlation.svg"), f)
             end
+            ddd[crop_type]["beginflowering_actual"] = phenology_df.beginflowering_actualdays
+            ddd[crop_type]["beginflowering_simulated"] = phenology_df.beginflowering_simulateddays
             
             # f = CropGrowthTutorial.plot_GDD_stats_years(phenology_df, station_name)
             # Makie.save(plotsdir(crop_type*"_"*station_name*"_phenology.png"), f)
@@ -228,7 +239,7 @@ function main(station_=nothing)
             if typeof(plottype) == CropGrowthTutorial.PlotsPlotOption
                 Plots.savefig(f, plotsdir("svgimages", crop_type*"_"*station_name*"_cropevolution.svg"))
             else
-                Makie.save(plotsdir(crop_type*"_"*station_name*"_cropevolution.png"), f)
+                Makie.save(plotsdir("svgimages", crop_type*"_"*station_name*"_cropevolution.svg"), f)
             end
 
             # plot yield results
@@ -273,8 +284,10 @@ function main(station_=nothing)
                 if typeof(plottype) == CropGrowthTutorial.PlotsPlotOption
                     Plots.savefig(f, plotsdir("svgimages",crop_type*"_"*station_name*"yield_correlation.svg"))
                 else
-                    Makie.save(plotsdir(crop_type*"_"*station_name*"_correlation.png"), f)
+                    Makie.save(plotsdir("svgimages", crop_type*"_"*station_name*"yield_correlation.svg"), f)
                 end
+                ddd[crop_type]["yield_actual"] = target_output 
+                ddd[crop_type]["yield_simulated"] = simulated_yield 
 
                 f = CropGrowthTutorial.plot_yearly_data(dats, cols, years, crop_type, soil_type, station_name)
                 Makie.save(plotsdir(crop_type*"_"*station_name*"_yearlydata.png"), f)
@@ -282,6 +295,7 @@ function main(station_=nothing)
             println("INFO: saved plots of crop_type "*crop_type*" from station_name "*station_name)
         end
     end
+    return ddd
 end
 
 function write_fited_crop(crop_type, soil_type, crop_name, crop_dict, station_name, fit_description)
@@ -300,4 +314,55 @@ function write_fited_crop(crop_type, soil_type, crop_name, crop_dict, station_na
     # save crop
     AquaCrop.save_crop(full_filename, crop, head)
     return nothing
+end
+
+
+function plotting(ddd, stations, crop_type, stuff)
+    if stuff == "yield"
+        x_s = "yield_actual"
+        y_s = "yield_simulated"
+    elseif stuff == "flowering"
+        x_s = "beginflowering_actual"
+        y_s = "beginflowering_simulated"
+    elseif stuff == "harvest"
+        x_s = "harvest_actual"
+        y_s = "harvest_simulated"
+    elseif stuff == "emergence"
+        x_s = "emergence_actual"
+        y_s = "emergence_simulated"
+    else 
+        @error "not good stuff"
+    end
+
+    f = Makie.Figure()
+
+    ax = Makie.Axis(f[1,1],
+        title = crop_type*" simulated vs actual "*stuff,
+        xlabel = "actual value",
+        ylabel = "simulated value"
+    )
+
+    xmin = 1e10
+    xmax = -1e10
+
+    for station in stations
+        if !haskey(ddd[station], crop_type)
+            continue
+        elseif !((haskey(ddd[station][crop_type], x_s)) || (haskey(ddd[station][crop_type], y_s)))
+            continue
+        end
+
+        xx = ddd[station][crop_type][x_s]
+        yy = ddd[station][crop_type][y_s]
+
+        x, y = CropGrowthTutorial.keep_only_notmissing(xx,yy)
+        xmin = min(xmin, minimum(x))
+        xmax = max(xmax, maximum(x))
+        Makie.scatter!(ax, x, y; label=station)
+    end
+    Makie.lines!(ax, [xmin, xmax], [xmin, xmax]; color = :tomato, linestyle = :dash, label="x=y")
+    f[1,2] = Makie.Legend(f, ax, titlefont=:regular, framvisible=false)
+
+
+    return f
 end
