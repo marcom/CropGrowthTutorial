@@ -99,13 +99,13 @@ function _calibrate_biomass_yield_parameters(crop, crop_dict, crop_name, soil_ty
     # make optimization problem
     prob = OptimizationProblem(get_val, u0, pars, lb = lb, ub = ub)
 
-    # solve the optimization problem 
-    if haskey(kw, :maxiters)
-        maxiters = kw[:maxiters]
-    else
-        maxiters = 100
-    end
-    sol = solve(prob, BBO_adaptive_de_rand_1_bin_radiuslimited(), maxiters=maxiters)
+    # solve the optimization problem
+    maxiters = get(kw, :maxiters, 100)
+    rng_seed = get(kw, :rng_seed, nothing)
+    sol = solve(prob, BBO_adaptive_de_rand_1_bin_radiuslimited();
+                maxiters=maxiters,
+                (isnothing(rng_seed) ? (; ) : (; RngSeed=rng_seed, RandomizeRngSeed=false))...
+    )
     return sol.u, pars
 end
 
