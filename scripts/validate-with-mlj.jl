@@ -208,21 +208,9 @@ end
 
 
 
-##########
-# testing
-##########
-
-# TODO: automatically get this data
-
-# Available yield data for stations and crop types
-#
-# crop_type           Eichsfeld_years    Jena_years    Thüringer_Becken_years
-# ---------           ---------------    ----------    ----------------------
-# Silage maize        2009--2022         2000--2014    2014--2022
-# Winter wheat        2009--2022         2000--2014    2014--2022
-# Winter barley       2009--2022         2000--2014    2015--2022
-# Winter rapeseed     2009--2022         2000--2014    2014--2022
-
+###################
+# cross-validation
+###################
 
 function crossvalidate_fit(
     station_name::AbstractString,
@@ -233,11 +221,7 @@ function crossvalidate_fit(
     measures=DEFAULT_MEASURES,
     rng_seed::Int=rand(Int),
     maxiter::Int=DEFAULT_MAXITER,
-    #nfolds::Union{Int, Nothing}=nothing
 )
-    #MIN_NFOLDS = 2
-    #MAX_NFOLDS = 5
-
     println()
     println("make_fit inputs: station_name = $station_name, crop_type = $crop_type")
 
@@ -346,7 +330,17 @@ function crossvalidate_fit(
     return r
 end
 
+# Use CPU threads in MLJ
 MLJ.default_resource(MLJ.CPUThreads())
+
+# Available yield data for stations and crop types
+#
+# crop_type           Eichsfeld_years    Jena_years    Thüringer_Becken_years
+# ---------           ---------------    ----------    ----------------------
+# Silage maize        2009--2022         2000--2014    2014--2022
+# Winter wheat        2009--2022         2000--2014    2014--2022
+# Winter barley       2009--2022         2000--2014    2015--2022
+# Winter rapeseed     2009--2022         2000--2014    2014--2022
 
 function validate_all(; repeats::Int=1, measures=DEFAULT_MEASURES, rng_seed::Int=42, maxiter::Int=DEFAULT_MAXITER)
     rng = StableRNG(hash(rng_seed, UInt(0x1a2b3c4d5e6f7788)))  # salted hash
