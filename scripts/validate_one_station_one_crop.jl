@@ -197,7 +197,6 @@ function main(crop_file_path, station_, _crop_type)
                 Makie.save(plotsdir("svgimages", crop_type * "_" * station_name * "beginflowering_correlation_validation.svg"), f_b)
                 Makie.save(plotsdir(crop_type * "_" * station_name * "beginflowering_correlation_validation.png"), f_b)
             end
-            @infiltrate
 
             # Simulate for each sowing date with calibrated TOML
             simulated_yield = Vector{Union{Missing,Float64}}()
